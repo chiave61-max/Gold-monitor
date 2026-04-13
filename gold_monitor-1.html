@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gold Inside Bar Monitor</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0e1a; color: #e0e0e0; font-family: 'Courier New', monospace; padding: 20px; }
+  .header { text-align: center; margin-bottom: 24px; }
+  .title { font-size: 22px; font-weight: bold; color: #FFD700; letter-spacing: 3px; }
+  .subtitle { font-size: 11px; color: #666; letter-spacing: 2px; margin-top: 4px; }
+  .card { background: #111827; border-radius: 12px; padding: 20px; margin-bottom: 16px; border: 1px solid #1e2a3a; }
+  .signal-box { text-align: center; padding: 24px; border-radius: 12px; margin-bottom: 16px; }
+  .signal-wait   { background: #1a1a2b; border: 2px solid #444; }
+  .signal-inside { background: #1a1500; border: 2px solid #FFD700; }
+  .signal-none   { background: #111827; border: 2px solid #333; }
+  .signal-label { font-size: 11px; letter-spacing: 3px; margin-bottom: 8px; color: #aaa; }
+  .signal-text  { font-size: 28px; font-weight: bold; letter-spacing: 3px; }
+  .signal-wait   .signal-text { color: #888; font-size: 16px; }
+  .signal-inside .signal-text { color: #FFD700; }
+  .signal-none   .signal-text { color: #555; font-size: 18px; }
+  .signal-sub { font-size: 12px; margin-top: 8px; color: #aaa; }
+  .levels-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 14px; }
+  .level-card { background: #0a0e1a; border-radius: 8px; padding: 10px; text-align: center; }
+  .level-label { font-size: 9px; color: #666; letter-spacing: 2px; margin-bottom: 4px; }
+  .level-value { font-size: 15px; font-weight: bold; }
+  .tp { color: #00c853; } .sl { color: #ff1744; } .gold { color: #FFD700; }
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .stat-card { background: #111827; border-radius: 10px; padding: 14px; border: 1px solid #1e2a3a; text-align: center; }
+  .stat-label { font-size: 9px; color: #666; letter-spacing: 2px; margin-bottom: 6px; }
+  .stat-value { font-size: 20px; font-weight: bold; color: #FFD700; }
+  .stat-sub { font-size: 10px; color: #555; margin-top: 4px; }
+  .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #1e2a3a; font-size: 12px; }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { color: #666; }
+  .section-title { font-size: 10px; color: #666; letter-spacing: 2px; margin-bottom: 12px; }
+  .btn { width: 100%; padding: 16px; border: none; border-radius: 10px; font-size: 13px; font-weight: bold; letter-spacing: 2px; cursor: pointer; font-family: 'Courier New', monospace; margin-bottom: 10px; }
+  .btn-gold { background: #FFD700; color: #000; }
+  .btn-manual { background: #1e2a3a; color: #aaa; font-size: 11px; padding: 10px; }
+  .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .dot-gold { background: #FFD700; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .green { color: #00c853; } .red { color: #ff1744; }
+  input[type=number] { width:100%; background:#0a0e1a; border:1px solid #333; color:#fff; padding:10px; border-radius:6px; font-family:monospace; font-size:14px; margin-top:4px; }
+  .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+  .form-label { font-size:10px; color:#666; letter-spacing:1px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title">🥇 GOLD INSIDE BAR</div>
+  <div class="subtitle">
+    <span class="status-dot dot-gold"></span>
+    STRATEGIA DAILY — HOLD 3 GIORNI
+  </div>
+</div>
+
+<!-- SEGNALE -->
+<div id="signal-box" class="signal-box signal-wait">
+  <div class="signal-label">SEGNALE OGGI</div>
+  <div class="signal-text" id="signal-text">CARICAMENTO...</div>
+  <div class="signal-sub" id="signal-sub">Connessione in corso...</div>
+  <div class="levels-grid" id="levels-grid" style="display:none">
+    <div class="level-card">
+      <div class="level-label">BREAKOUT LONG</div>
+      <div class="level-value tp" id="level-long">—</div>
+    </div>
+    <div class="level-card">
+      <div class="level-label">BREAKOUT SHORT</div>
+      <div class="level-value red" id="level-short">—</div>
+    </div>
+    <div class="level-card">
+      <div class="level-label">RANGE BAR</div>
+      <div class="level-value gold" id="level-range">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- DATI CANDELE -->
+<div class="card">
+  <div class="section-title">📊 CANDELE DAILY GOLD</div>
+  <div class="info-row"><span class="info-label">IERI High</span><span id="prev-high">—</span></div>
+  <div class="info-row"><span class="info-label">IERI Low</span><span id="prev-low">—</span></div>
+  <div class="info-row"><span class="info-label">OGGI High</span><span id="curr-high">—</span></div>
+  <div class="info-row"><span class="info-label">OGGI Low</span><span id="curr-low">—</span></div>
+  <div class="info-row"><span class="info-label">INSIDE BAR</span><span id="is-inside">—</span></div>
+  <div class="info-row"><span class="info-label">ULTIMO AGGIORNAMENTO</span><span id="last-update">—</span></div>
+</div>
+
+<!-- TP SL -->
+<div class="card" id="tp-sl-card" style="display:none">
+  <div class="section-title">🎯 LIVELLI OPERATIVI (domani)</div>
+  <div class="info-row"><span class="info-label">ENTRATA LONG</span><span class="green" id="entry-long">—</span></div>
+  <div class="info-row"><span class="info-label">TP LONG</span><span class="green" id="tp-long">—</span></div>
+  <div class="info-row"><span class="info-label">SL LONG</span><span class="red" id="sl-long">—</span></div>
+  <div class="info-row"><span class="info-label">ENTRATA SHORT</span><span class="red" id="entry-short">—</span></div>
+  <div class="info-row"><span class="info-label">TP SHORT</span><span class="green" id="tp-short">—</span></div>
+  <div class="info-row"><span class="info-label">SL SHORT</span><span class="red" id="sl-short">—</span></div>
+  <div class="info-row"><span class="info-label">HOLD</span><span class="gold">3 giorni</span></div>
+</div>
+
+<!-- STATS -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-label">WIN RATE</div>
+    <div class="stat-value">58.7%</div>
+    <div class="stat-sub">293 trade 2015-2025</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">PROFIT FACTOR</div>
+    <div class="stat-value">2.81</div>
+    <div class="stat-sub">livello professionale</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">MAX DRAWDOWN</div>
+    <div class="stat-value" style="color:#ff1744">-5.89%</div>
+    <div class="stat-sub">molto contenuto</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">RETURN 10 ANNI</div>
+    <div class="stat-value">+234%</div>
+    <div class="stat-sub">$10k → $33k</div>
+  </div>
+</div>
+
+<button class="btn btn-gold" onclick="fetchGold()">▶ AGGIORNA SEGNALE</button>
+<button class="btn btn-manual" onclick="toggleManual()">✏️ INSERIMENTO MANUALE</button>
+
+<!-- FORM MANUALE -->
+<div class="card" id="manual-card" style="display:none">
+  <div class="section-title">✏️ INSERIMENTO MANUALE</div>
+  <div class="form-grid">
+    <div>
+      <div class="form-label">IERI HIGH $</div>
+      <input type="number" id="m-ph" step="0.1" placeholder="es. 3220.50">
+    </div>
+    <div>
+      <div class="form-label">IERI LOW $</div>
+      <input type="number" id="m-pl" step="0.1" placeholder="es. 3180.20">
+    </div>
+    <div>
+      <div class="form-label">OGGI HIGH $</div>
+      <input type="number" id="m-ch" step="0.1" placeholder="es. 3210.00">
+    </div>
+    <div>
+      <div class="form-label">OGGI LOW $</div>
+      <input type="number" id="m-cl" step="0.1" placeholder="es. 3190.00">
+    </div>
+  </div>
+  <button class="btn btn-gold" onclick="calcManual()">▶ CALCOLA SEGNALE</button>
+</div>
+
+<script>
+function toggleManual() {
+  const card = document.getElementById('manual-card');
+  card.style.display = card.style.display === 'none' ? 'block' : 'none';
+}
+
+function updateUI(prev_high, prev_low, curr_high, curr_low, source) {
+  const bar_range = prev_high - prev_low;
+  const isInside  = curr_high < prev_high && curr_low > prev_low;
+
+  document.getElementById('prev-high').textContent = `$${prev_high.toFixed(2)}`;
+  document.getElementById('prev-low').textContent  = `$${prev_low.toFixed(2)}`;
+  document.getElementById('curr-high').textContent = `$${curr_high.toFixed(2)}`;
+  document.getElementById('curr-low').textContent  = `$${curr_low.toFixed(2)}`;
+  document.getElementById('last-update').textContent =
+    new Date().toLocaleTimeString('it-IT') + (source ? ` (${source})` : '');
+
+  document.getElementById('is-inside').innerHTML =
+    isInside ? '<span class="gold">✅ SÌ — SEGNALE ATTIVO</span>'
+             : '<span style="color:#888">❌ NO — ATTENDI</span>';
+
+  const box    = document.getElementById('signal-box');
+  const txt    = document.getElementById('signal-text');
+  const sub    = document.getElementById('signal-sub');
+  const levels = document.getElementById('levels-grid');
+  const tpCard = document.getElementById('tp-sl-card');
+
+  if (isInside) {
+    const tp_long  = prev_high + bar_range;
+    const sl_long  = prev_high - bar_range * 0.5;
+    const tp_short = prev_low  - bar_range;
+    const sl_short = prev_low  + bar_range * 0.5;
+
+    box.className = 'signal-box signal-inside';
+    txt.textContent = '🥇 INSIDE BAR!';
+    sub.textContent = 'Domani entra sulla rottura del range';
+
+    document.getElementById('level-long').textContent  = `$${prev_high.toFixed(2)}`;
+    document.getElementById('level-short').textContent = `$${prev_low.toFixed(2)}`;
+    document.getElementById('level-range').textContent = `$${bar_range.toFixed(2)}`;
+    levels.style.display = 'grid';
+
+    document.getElementById('entry-long').textContent  = `$${prev_high.toFixed(2)}`;
+    document.getElementById('tp-long').textContent     = `$${tp_long.toFixed(2)}`;
+    document.getElementById('sl-long').textContent     = `$${sl_long.toFixed(2)}`;
+    document.getElementById('entry-short').textContent = `$${prev_low.toFixed(2)}`;
+    document.getElementById('tp-short').textContent    = `$${tp_short.toFixed(2)}`;
+    document.getElementById('sl-short').textContent    = `$${sl_short.toFixed(2)}`;
+    tpCard.style.display = 'block';
+  } else {
+    box.className = 'signal-box signal-none';
+    txt.textContent = 'NESSUN SEGNALE';
+    sub.textContent = `Range ieri: $${prev_high.toFixed(0)}-$${prev_low.toFixed(0)} — Non è inside bar`;
+    levels.style.display = 'none';
+    tpCard.style.display = 'none';
+  }
+}
+
+function calcManual() {
+  const ph = parseFloat(document.getElementById('m-ph').value);
+  const pl = parseFloat(document.getElementById('m-pl').value);
+  const ch = parseFloat(document.getElementById('m-ch').value);
+  const cl = parseFloat(document.getElementById('m-cl').value);
+  if (!ph || !pl || !ch || !cl) { alert('Inserisci tutti i valori!'); return; }
+  updateUI(ph, pl, ch, cl, 'manuale');
+  document.getElementById('manual-card').style.display = 'none';
+}
+
+async function tryFetch(url, opts) {
+  try {
+    const r = await fetch(url, opts);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+
+async function fetchGold() {
+  const btn = document.querySelectorAll('.btn-gold')[0];
+  btn.textContent = '⏳ CARICAMENTO...';
+  btn.disabled = true;
+
+  document.getElementById('signal-text').textContent = 'CARICAMENTO...';
+  document.getElementById('signal-sub').textContent = 'Connessione in corso...';
+
+  let ph, pl, ch, cl;
+
+  // Tentativo 1 — Yahoo Finance v8 query1
+  let data = await tryFetch(
+    'https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=5d',
+    { headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' } }
+  );
+
+  // Tentativo 2 — Yahoo Finance v8 query2
+  if (!data?.chart?.result?.[0]) {
+    data = await tryFetch(
+      'https://query2.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=5d',
+      { headers: { 'Accept': 'application/json' } }
+    );
+  }
+
+  // Tentativo 3 — allorigins proxy
+  if (!data?.chart?.result?.[0]) {
+    const proxy = await tryFetch(
+      'https://api.allorigins.win/get?url=' +
+      encodeURIComponent('https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=5d'),
+      {}
+    );
+    if (proxy?.contents) {
+      try { data = JSON.parse(proxy.contents); } catch {}
+    }
+  }
+
+  // Tentativo 4 — corsproxy.io
+  if (!data?.chart?.result?.[0]) {
+    data = await tryFetch(
+      'https://corsproxy.io/?' +
+      encodeURIComponent('https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=5d'),
+      {}
+    );
+  }
+
+  if (data?.chart?.result?.[0]) {
+    const quotes = data.chart.result[0].indicators.quote[0];
+    const highs  = quotes.high;
+    const lows   = quotes.low;
+    const n = highs.length;
+
+    let pi = n - 2, ci = n - 1;
+    while (pi > 0 && (!highs[pi] || !lows[pi])) pi--;
+    while (ci > pi && (!highs[ci] || !lows[ci])) ci--;
+
+    ph = highs[pi]; pl = lows[pi];
+    ch = highs[ci]; cl = lows[ci];
+
+    updateUI(ph, pl, ch, cl, 'auto');
+  } else {
+    // Fallback manuale
+    document.getElementById('signal-box').className = 'signal-box signal-wait';
+    document.getElementById('signal-text').textContent = 'INSERISCI DATI';
+    document.getElementById('signal-sub').textContent = 'Premi il bottone manuale qui sotto';
+    document.getElementById('manual-card').style.display = 'block';
+  }
+
+  btn.textContent = '▶ AGGIORNA SEGNALE';
+  btn.disabled = false;
+}
+
+fetchGold();
+</script>
+</body>
+</html>
