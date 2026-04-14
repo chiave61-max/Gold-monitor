@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EIA Gas Monitor — UNG Strategy</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c10;
+    --panel: #0d1520;
+    --border: #1a2535;
+    --accent: #ff8800;
+    --green: #00ff88;
+    --red: #ff3355;
+    --yellow: #ffcc00;
+    --blue: #00e5ff;
+    --text: #c8d8e8;
+    --dim: #4a6080;
+    --mono: 'Share Tech Mono', monospace;
+    --sans: 'Barlow Condensed', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 16px;
+    background-image:
+      radial-gradient(ellipse at 20% 0%, rgba(255,136,0,0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 100%, rgba(0,255,136,0.03) 0%, transparent 50%);
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header h1 {
+    font-family: var(--mono);
+    font-size: 1.1rem;
+    color: var(--accent);
+    letter-spacing: 2px;
+  }
+  .header p {
+    font-size: 0.75rem;
+    color: var(--dim);
+    margin-top: 2px;
+    letter-spacing: 1px;
+  }
+  .live-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: pulse 2s infinite;
+    display: inline-block;
+    margin-right: 6px;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .tab {
+    flex: 1;
+    padding: 8px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--dim);
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+  }
+  .tab.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(255,136,0,0.08);
+  }
+
+  /* COUNTDOWN */
+  .countdown-block {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--accent);
+    border-radius: 4px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+  .countdown-label {
+    font-size: 0.7rem;
+    letter-spacing: 3px;
+    color: var(--dim);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .countdown-timer {
+    font-family: var(--mono);
+    font-size: 2rem;
+    color: var(--accent);
+    letter-spacing: 4px;
+    text-shadow: 0 0 20px rgba(255,136,0,0.4);
+  }
+  .countdown-sub {
+    font-size: 0.7rem;
+    color: var(--dim);
+    margin-top: 4px;
+  }
+
+  /* DUAL SYSTEM BANNER */
+  .dual-banner {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .dual-item {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px;
+    text-align: center;
+  }
+  .dual-item.active-today {
+    border-color: var(--accent);
+    background: rgba(255,136,0,0.06);
+  }
+  .dual-item .di-day {
+    font-size: 0.6rem;
+    letter-spacing: 2px;
+    color: var(--dim);
+    text-transform: uppercase;
+  }
+  .dual-item .di-name {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    color: var(--text);
+    margin-top: 3px;
+  }
+  .dual-item .di-time {
+    font-size: 0.65rem;
+    color: var(--accent);
+    margin-top: 2px;
+  }
+
+  /* SIGNAL CARD */
+  .signal-card {
+    padding: 14px 16px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    margin-bottom: 16px;
+    background: var(--panel);
+  }
+  .signal-card.long  { border-left: 3px solid var(--green); }
+  .signal-card.short { border-left: 3px solid var(--red); }
+  .signal-card.wait  { border-left: 3px solid var(--dim); }
+
+  .signal-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 2px;
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+  .signal-badge.long  { background: rgba(0,255,136,0.15); color: var(--green); }
+  .signal-badge.short { background: rgba(255,51,85,0.15);  color: var(--red); }
+  .signal-badge.wait  { background: rgba(74,96,128,0.2);   color: var(--dim); }
+
+  .signal-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+  .signal-desc  { font-size: 0.8rem; color: var(--dim); line-height: 1.5; }
+
+  /* INPUT */
+  .section-title {
+    font-size: 0.65rem;
+    letter-spacing: 3px;
+    color: var(--dim);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .input-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .input-group {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px 12px;
+  }
+  .input-group label {
+    display: block;
+    font-size: 0.65rem;
+    letter-spacing: 2px;
+    color: var(--dim);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .input-group input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 1.1rem;
+    padding: 4px 0;
+    outline: none;
+  }
+  .input-group input:focus { border-bottom-color: var(--accent); }
+  .input-group .unit { font-size: 0.65rem; color: var(--dim); margin-top: 4px; }
+
+  .calc-btn {
+    width: 100%;
+    padding: 12px;
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    letter-spacing: 3px;
+    cursor: pointer;
+    border-radius: 4px;
+    margin-bottom: 16px;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+  .calc-btn:hover { background: rgba(255,136,0,0.1); box-shadow: 0 0 15px rgba(255,136,0,0.2); }
+
+  /* RESULT */
+  .result-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .result-item {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px 12px;
+  }
+  .result-item .rlabel { font-size: 0.6rem; letter-spacing: 2px; color: var(--dim); text-transform: uppercase; margin-bottom: 4px; }
+  .result-item .rvalue { font-family: var(--mono); font-size: 1rem; font-weight: bold; }
+  .rvalue.green  { color: var(--green); }
+  .rvalue.red    { color: var(--red); }
+  .rvalue.yellow { color: var(--yellow); }
+  .rvalue.accent { color: var(--accent); }
+
+  /* LOG */
+  .log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .clear-btn {
+    font-size: 0.65rem; color: var(--dim);
+    background: none; border: 1px solid var(--border);
+    padding: 3px 8px; border-radius: 2px; cursor: pointer; font-family: var(--mono);
+  }
+  .clear-btn:hover { color: var(--red); border-color: var(--red); }
+
+  .trade-log { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; margin-bottom: 16px; }
+  .trade-row {
+    display: grid;
+    grid-template-columns: 80px 52px 1fr 60px 60px;
+    gap: 6px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    align-items: center;
+    animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:none} }
+  .trade-row.header-row { background: rgba(255,136,0,0.04); color: var(--dim); font-size: 0.6rem; letter-spacing: 1px; }
+  .trade-row:last-child { border-bottom: none; }
+  .sig-l { color: var(--green); }
+  .sig-s { color: var(--red); }
+  .pnl-pos { color: var(--green); }
+  .pnl-neg { color: var(--red); }
+  .empty-log { text-align: center; padding: 24px; color: var(--dim); font-size: 0.75rem; letter-spacing: 2px; }
+
+  /* STATS */
+  .stats-bar { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 16px; }
+  .stat-box { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 10px; text-align: center; }
+  .stat-box .sv { font-family: var(--mono); font-size: 1.1rem; font-weight: bold; margin-bottom: 2px; }
+  .stat-box .sl { font-size: 0.6rem; letter-spacing: 1px; color: var(--dim); text-transform: uppercase; }
+
+  /* RULES */
+  .rules-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--accent);
+    border-radius: 4px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+  }
+  .rules-box .rule { font-size: 0.75rem; color: var(--text); padding: 4px 0; display: flex; gap: 8px; line-height: 1.4; }
+  .rules-box .rule .ri { color: var(--accent); min-width: 16px; }
+
+  /* STAGIONALITÀ */
+  .season-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 8px; margin-bottom: 16px; }
+  .season-item {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px 12px;
+  }
+  .season-item .s-name { font-size: 0.7rem; letter-spacing: 1px; color: var(--dim); margin-bottom: 4px; }
+  .season-item .s-wr { font-family: var(--mono); font-size: 1rem; font-weight: bold; }
+  .season-item .s-note { font-size: 0.65rem; color: var(--dim); margin-top: 2px; }
+
+  .footer { text-align: center; font-size: 0.6rem; color: var(--dim); letter-spacing: 2px; padding-top: 12px; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>🔥 EIA GAS MONITOR</h1>
+    <p><span class="live-dot"></span>STRATEGIA EVENT-DRIVEN — GIOVEDÌ 16:30 IT</p>
+  </div>
+</div>
+
+<!-- DUAL SYSTEM BANNER -->
+<div class="dual-banner">
+  <div class="dual-item" id="wed-banner">
+    <div class="di-day">MERCOLEDÌ</div>
+    <div class="di-name">⛽ EIA PETROLIO</div>
+    <div class="di-time">WTI Crude Oil ETC</div>
+  </div>
+  <div class="dual-item" id="thu-banner">
+    <div class="di-day">GIOVEDÌ</div>
+    <div class="di-name">🔥 EIA GAS</div>
+    <div class="di-time">Natural Gas ETC</div>
+  </div>
+</div>
+
+<!-- COUNTDOWN -->
+<div class="countdown-block">
+  <div class="countdown-label">⏱ prossimo report EIA GAS</div>
+  <div class="countdown-timer" id="countdown">--:--:--</div>
+  <div class="countdown-sub" id="next-date">calcolo in corso...</div>
+</div>
+
+<!-- SIGNAL -->
+<div class="signal-card wait" id="signal-card">
+  <div class="signal-badge wait" id="signal-badge">ATTESA</div>
+  <div class="signal-title" id="signal-title">Inserisci i dati EIA Gas</div>
+  <div class="signal-desc" id="signal-desc">Compila il consensus atteso e il dato reale per ricevere il segnale.</div>
+</div>
+
+<!-- INPUT -->
+<div class="section-title">📥 dati settimanali</div>
+<div class="input-row">
+  <div class="input-group">
+    <label>Consensus atteso</label>
+    <input type="number" id="inp-expected" placeholder="-45" step="1">
+    <div class="unit">miliardi piedi cubici (Bcf)</div>
+  </div>
+  <div class="input-group">
+    <label>Dato EIA reale</label>
+    <input type="number" id="inp-actual" placeholder="+12" step="1">
+    <div class="unit">miliardi piedi cubici (Bcf)</div>
+  </div>
+</div>
+<div class="input-row">
+  <div class="input-group">
+    <label>Prezzo entrata ETC</label>
+    <input type="number" id="inp-entry" placeholder="10.50" step="0.01">
+    <div class="unit">prezzo open ~16:35</div>
+  </div>
+  <div class="input-group">
+    <label>Capitale allocato</label>
+    <input type="number" id="inp-capital" placeholder="1000" step="100">
+    <div class="unit">euro / dollari</div>
+  </div>
+</div>
+
+<button class="calc-btn" onclick="calcSignal()">▶ CALCOLA SEGNALE</button>
+
+<!-- RESULT -->
+<div class="result-grid" id="result-grid" style="display:none">
+  <div class="result-item"><div class="rlabel">Scarto</div><div class="rvalue accent" id="r-spread">—</div></div>
+  <div class="result-item"><div class="rlabel">Segnale</div><div class="rvalue" id="r-signal">—</div></div>
+  <div class="result-item"><div class="rlabel">Stop Loss</div><div class="rvalue red" id="r-sl">—</div></div>
+  <div class="result-item"><div class="rlabel">Take Profit</div><div class="rvalue green" id="r-tp">—</div></div>
+  <div class="result-item"><div class="rlabel">Max perdita</div><div class="rvalue red" id="r-maxloss">—</div></div>
+  <div class="result-item"><div class="rlabel">Target guadagno</div><div class="rvalue green" id="r-target">—</div></div>
+</div>
+
+<!-- CHIUSURA -->
+<div id="close-section" style="display:none">
+  <div class="section-title">📤 chiudi trade</div>
+  <div class="input-row">
+    <div class="input-group">
+      <label>Prezzo uscita</label>
+      <input type="number" id="inp-exit" placeholder="11.20" step="0.01">
+      <div class="unit">prezzo close ~22:00</div>
+    </div>
+    <div class="input-group">
+      <label>Data trade</label>
+      <input type="date" id="inp-date">
+      <div class="unit">giovedì EIA</div>
+    </div>
+  </div>
+  <button class="calc-btn" onclick="closeTrade()">✔ REGISTRA TRADE</button>
+</div>
+
+<!-- STATS -->
+<div class="section-title">📊 statistiche sessione</div>
+<div class="stats-bar">
+  <div class="stat-box"><div class="sv green" id="stat-wr">—</div><div class="sl">Win Rate</div></div>
+  <div class="stat-box"><div class="sv accent" id="stat-pnl">—</div><div class="sl">P&L Totale</div></div>
+  <div class="stat-box"><div class="sv yellow" id="stat-n">0</div><div class="sl">Trade</div></div>
+</div>
+
+<!-- LOG -->
+<div class="log-header">
+  <div class="section-title" style="margin:0">📋 log trade</div>
+  <button class="clear-btn" onclick="clearLog()">RESET</button>
+</div>
+<div class="trade-log">
+  <div class="trade-row header-row">
+    <span>DATA</span><span>DIR</span><span>SCARTO</span><span>ENTRY</span><span>P&L%</span>
+  </div>
+  <div id="trade-log-body"><div class="empty-log">NESSUN TRADE REGISTRATO</div></div>
+</div>
+
+<!-- STAGIONALITÀ -->
+<div class="section-title">🌡️ stagionalità storica (backtest)</div>
+<div class="season-grid">
+  <div class="season-item">
+    <div class="s-name">❄️ INVERNO (dic-feb)</div>
+    <div class="s-wr green">WR ~62%</div>
+    <div class="s-note">Withdrawal stagionale → forte reazione</div>
+  </div>
+  <div class="season-item">
+    <div class="s-name">🌸 PRIMAVERA (mar-mag)</div>
+    <div class="s-wr green">WR ~60%</div>
+    <div class="s-note">Transizione injection/withdrawal</div>
+  </div>
+  <div class="season-item">
+    <div class="s-name">☀️ ESTATE (giu-ago)</div>
+    <div class="s-wr green">WR ~58%</div>
+    <div class="s-note">Injection season, cooling demand</div>
+  </div>
+  <div class="season-item">
+    <div class="s-name">🍂 AUTUNNO (set-nov)</div>
+    <div class="s-wr green">WR ~60%</div>
+    <div class="s-note">Pre-winter build, alta volatilità</div>
+  </div>
+</div>
+
+<!-- RULES -->
+<div class="section-title">📌 regole operative</div>
+<div class="rules-box">
+  <div class="rule"><span class="ri">1</span><span><b>MERCOLEDÌ SERA</b> — cerca consensus su investing.com → cerca "Natural Gas Storage" giovedì</span></div>
+  <div class="rule"><span class="ri">2</span><span><b>GIOVEDÌ 16:30 IT</b> — esce dato EIA Gas. Calcola scarto vs consensus in Bcf</span></div>
+  <div class="rule"><span class="ri">3</span><span><b>SOGLIA</b> — opera solo se scarto > 50 Bcf. Sotto soglia = no trade</span></div>
+  <div class="rule"><span class="ri">4</span><span><b>LONG</b> — scorte sotto attese → WisdomTree Natural Gas ETC</span></div>
+  <div class="rule"><span class="ri">5</span><span><b>SHORT</b> — scorte sopra attese → WisdomTree Natural Gas 1x Daily Short ETC</span></div>
+  <div class="rule"><span class="ri">6</span><span><b>STOP</b> -4% | <b>TP</b> +6% | <b>USCITA</b> close giornata entro 22:00 IT</span></div>
+  <div class="rule"><span class="ri">7</span><span><b>NOTA</b> — Gas è 2x più volatile del petrolio. Size massima consigliata: 50% del capitale vs petrolio</span></div>
+</div>
+
+<div class="footer">EIA GAS MONITOR v1.0 — SOLO USO INFORMATIVO — NON COSTITUISCE CONSULENZA FINANZIARIA</div>
+
+<script>
+// ── STATO ──
+let currentSignal = null;
+let currentEntry  = null;
+let currentCapital = null;
+let trades = JSON.parse(localStorage.getItem('eia_gas_trades') || '[]');
+
+const SOGLIA_BCF = 50;
+const SL = 0.04;
+const TP = 0.06;
+
+// ── HIGHLIGHT GIORNO CORRENTE ──
+function highlightToday() {
+  const day = new Date().getDay(); // 3=mer, 4=giov
+  if (day === 3) document.getElementById('wed-banner').classList.add('active-today');
+  if (day === 4) document.getElementById('thu-banner').classList.add('active-today');
+}
+highlightToday();
+
+// ── COUNTDOWN GIOVEDÌ ──
+function getNextThursday() {
+  const now = new Date();
+  const day = now.getDay();
+  let daysUntil = (4 - day + 7) % 7;
+  if (daysUntil === 0) {
+    if (now.getHours() > 16 || (now.getHours() === 16 && now.getMinutes() >= 45))
+      daysUntil = 7;
+  }
+  const next = new Date(now);
+  next.setDate(now.getDate() + daysUntil);
+  next.setHours(16, 30, 0, 0);
+  return next;
+}
+
+function updateCountdown() {
+  const next = getNextThursday();
+  const now  = new Date();
+  const diff = next - now;
+  if (diff <= 0) {
+    document.getElementById('countdown').textContent = '🔴 LIVE';
+    document.getElementById('next-date').textContent = 'REPORT IN CORSO — 16:30 IT';
+    return;
+  }
+  const d = Math.floor(diff / 86400000);
+  const h = Math.floor((diff % 86400000) / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  const pad = n => String(n).padStart(2,'0');
+  document.getElementById('countdown').textContent =
+    d > 0 ? `${d}g ${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(h)}:${pad(m)}:${pad(s)}`;
+  const opts = { weekday:'long', day:'numeric', month:'long' };
+  document.getElementById('next-date').textContent =
+    'giovedì ' + next.toLocaleDateString('it-IT', opts) + ' · ore 16:30';
+}
+setInterval(updateCountdown, 1000);
+updateCountdown();
+
+// ── CALCOLA SEGNALE ──
+function calcSignal() {
+  const expected = parseFloat(document.getElementById('inp-expected').value);
+  const actual   = parseFloat(document.getElementById('inp-actual').value);
+  const entry    = parseFloat(document.getElementById('inp-entry').value);
+  const capital  = parseFloat(document.getElementById('inp-capital').value) || 0;
+
+  if (isNaN(expected) || isNaN(actual)) {
+    alert('Inserisci consensus e dato reale');
+    return;
+  }
+
+  const spread    = actual - expected;
+  const absSpread = Math.abs(spread);
+  const card      = document.getElementById('signal-card');
+  const badge     = document.getElementById('signal-badge');
+  const title     = document.getElementById('signal-title');
+  const desc      = document.getElementById('signal-desc');
+  const grid      = document.getElementById('result-grid');
+  const closeS    = document.getElementById('close-section');
+
+  grid.style.display = 'grid';
+  document.getElementById('r-spread').textContent =
+    (spread >= 0 ? '+' : '') + spread.toFixed(0) + ' Bcf';
+
+  if (absSpread < SOGLIA_BCF) {
+    card.className  = 'signal-card wait';
+    badge.className = 'signal-badge wait';
+    badge.textContent = 'NO TRADE';
+    title.textContent = 'Scarto insufficiente';
+    desc.textContent  = `Scarto di ${absSpread.toFixed(0)} Bcf < soglia ${SOGLIA_BCF} Bcf. Nessuna operazione.`;
+    document.getElementById('r-signal').textContent  = 'NO TRADE';
+    document.getElementById('r-signal').className    = 'rvalue yellow';
+    document.getElementById('r-sl').textContent      = '—';
+    document.getElementById('r-tp').textContent      = '—';
+    document.getElementById('r-maxloss').textContent = '—';
+    document.getElementById('r-target').textContent  = '—';
+    currentSignal = null;
+    closeS.style.display = 'none';
+    return;
+  }
+
+  const isLong   = spread < 0;
+  currentSignal  = isLong ? 1 : -1;
+  currentEntry   = isNaN(entry) ? null : entry;
+  currentCapital = capital;
+
+  if (isLong) {
+    card.className  = 'signal-card long';
+    badge.className = 'signal-badge long';
+    badge.textContent = '▲ LONG';
+    title.textContent = 'COMPRA Natural Gas ETC';
+    desc.textContent  = `Scorte ${Math.abs(spread).toFixed(0)} Bcf SOTTO le attese. LONG confermato → WisdomTree Natural Gas ETC all\'Open (~16:35 IT).`;
+    document.getElementById('r-signal').textContent = '▲ LONG';
+    document.getElementById('r-signal').className   = 'rvalue green';
+  } else {
+    card.className  = 'signal-card short';
+    badge.className = 'signal-badge short';
+    badge.textContent = '▼ SHORT';
+    title.textContent = 'COMPRA Natural Gas Short ETC';
+    desc.textContent  = `Scorte ${spread.toFixed(0)} Bcf SOPRA le attese. SHORT confermato → WisdomTree Natural Gas 1x Daily Short ETC all\'Open (~16:35 IT).`;
+    document.getElementById('r-signal').textContent = '▼ SHORT';
+    document.getElementById('r-signal').className   = 'rvalue red';
+  }
+
+  if (!isNaN(entry) && entry > 0) {
+    const sl_p = isLong ? entry * (1 - SL) : entry * (1 + SL);
+    const tp_p = isLong ? entry * (1 + TP) : entry * (1 - TP);
+    document.getElementById('r-sl').textContent = sl_p.toFixed(2);
+    document.getElementById('r-tp').textContent = tp_p.toFixed(2);
+    if (capital > 0) {
+      document.getElementById('r-maxloss').textContent = '-' + (capital * SL).toFixed(0);
+      document.getElementById('r-target').textContent  = '+' + (capital * TP).toFixed(0);
+    }
+    closeS.style.display = 'block';
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('inp-date').value = today;
+}
+
+// ── CHIUDI TRADE ──
+function closeTrade() {
+  const exit    = parseFloat(document.getElementById('inp-exit').value);
+  const date    = document.getElementById('inp-date').value;
+  const entry   = parseFloat(document.getElementById('inp-entry').value);
+  const capital = currentCapital || 1000;
+  const expected = parseFloat(document.getElementById('inp-expected').value);
+  const actual   = parseFloat(document.getElementById('inp-actual').value);
+  const spread   = (actual - expected).toFixed(0);
+
+  if (isNaN(exit) || isNaN(entry) || !currentSignal) {
+    alert('Inserisci prezzo di uscita');
+    return;
+  }
+
+  let pnlPct;
+  if (currentSignal === 1)  pnlPct = (exit - entry) / entry * 100;
+  else                       pnlPct = (entry - exit) / entry * 100;
+
+  const pnlEur = capital * (pnlPct / 100);
+
+  trades.push({ date, dir: currentSignal===1?'LONG':'SHORT', spread, entry: entry.toFixed(2), exit: exit.toFixed(2), pnlPct: pnlPct.toFixed(2), pnlEur: pnlEur.toFixed(0) });
+  localStorage.setItem('eia_gas_trades', JSON.stringify(trades));
+  renderLog();
+  updateStats();
+  currentSignal = null;
+  document.getElementById('close-section').style.display = 'none';
+  document.getElementById('inp-exit').value = '';
+  alert(`Trade registrato: ${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%`);
+}
+
+// ── RENDER LOG ──
+function renderLog() {
+  const body = document.getElementById('trade-log-body');
+  if (trades.length === 0) {
+    body.innerHTML = '<div class="empty-log">NESSUN TRADE REGISTRATO</div>';
+    return;
+  }
+  body.innerHTML = [...trades].reverse().map(t => `
+    <div class="trade-row">
+      <span>${t.date}</span>
+      <span class="${t.dir==='LONG'?'sig-l':'sig-s'}">${t.dir==='LONG'?'▲':'▼'} ${t.dir}</span>
+      <span style="color:var(--dim)">${t.spread>0?'+':''}${t.spread}</span>
+      <span style="color:var(--text)">${t.entry}</span>
+      <span class="${parseFloat(t.pnlPct)>=0?'pnl-pos':'pnl-neg'}">${parseFloat(t.pnlPct)>=0?'+':''}${t.pnlPct}%</span>
+    </div>`).join('');
+}
+
+// ── STATS ──
+function updateStats() {
+  const n = trades.length;
+  document.getElementById('stat-n').textContent = n;
+  if (n === 0) {
+    document.getElementById('stat-wr').textContent  = '—';
+    document.getElementById('stat-pnl').textContent = '—';
+    return;
+  }
+  const wins    = trades.filter(t => parseFloat(t.pnlPct) > 0).length;
+  const wr      = (wins / n * 100).toFixed(0);
+  const totalPnl = trades.reduce((s,t) => s + parseFloat(t.pnlEur), 0);
+  const wrEl = document.getElementById('stat-wr');
+  wrEl.textContent = wr + '%';
+  wrEl.className = `sv ${wr>=55?'green':wr>=45?'yellow':'red'}`;
+  const pnlEl = document.getElementById('stat-pnl');
+  pnlEl.textContent = (totalPnl>=0?'+':'') + totalPnl.toFixed(0);
+  pnlEl.className = `sv ${totalPnl>=0?'green':'red'}`;
+}
+
+function clearLog() {
+  if (confirm('Cancellare tutti i trade?')) {
+    trades = [];
+    localStorage.setItem('eia_gas_trades', JSON.stringify(trades));
+    renderLog();
+    updateStats();
+  }
+}
+
+renderLog();
+updateStats();
+</script>
+</body>
+</html>
